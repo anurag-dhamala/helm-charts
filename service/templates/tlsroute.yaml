@@ -1,0 +1,27 @@
+{{- if .Values.tlsroute.enabled -}}
+{{- $fullName := include "service.fullname" . -}}
+kind: TLSRoute
+apiVersion: networking.x-k8s.io/v1alpha1
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "service.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  gateways:
+    allow: All
+  hostnames:
+  rules:
+    - 
+      matches:
+        - snis:
+        {{- with .Values.tlsroute.snis }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      forwardTo:
+        - serviceName: {{ $fullName }}
+          port: {{ .Values.grpcs.port }}
+{{- end }}

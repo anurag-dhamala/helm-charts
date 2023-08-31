@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "service.fullname" . }}
+  annotations:
+  {{- if .Values.grpcs.enabled }}
+    secret.reloader.stakater.com/reload: "{{ .Values.grpcs.tlsSecret }}"
+  {{- end }}
+  {{- if .Values.grpc.enabled }}
+    appProtocol.grpc: "true"
+  {{- end }}
+  {{- if .Values.grpcs.enabled }}
+    appProtocol.grpcs: "true"
+  {{- end }}
+  {{- if .Values.http.enabled }}
+    appProtocol.http: "true"
+  {{- end }}
+  {{- with .Values.deploymentAnnotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+      {{- if .Values.grpcs.enabled }}
+        - name: init-tls
+          image: docker.io/nginx
+          imagePullPolicy: IfNotPresent
+          command:
+            - "bash"
+          args:
+            - -c
+            - "openssl pkcs8 -in /tls/tls.key -topk8 -out /config/tls.pkcs8 -nocrypt && cp /tls/tls.crt /config/tls.crt"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: secret
+              mountPath: /tls
+              readOnly: true
+      {{- end }}
+      {{- with .Values.initContainers }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: "service"
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.args }}
+          args: 
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.command }}
+          args: 
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key}}
+              value: {{ $value | quote}}
+            {{- end }}
+          {{- if .Values.envConfigMap }}
+          envFrom:
+          - configMapRef:
+              name: {{ .Values.envConfigMap }}
+          {{- end }}
+          {{- if .Values.grpcs.enabled }}
+            - name: TLS_ENABLED
+              value: "true"
+            - name: TLS_CERT
+              value: /config/tls.crt
+            - name: TLS_KEY
+              value: /config/tls.pkcs8
+          {{- end }}
+          ports:
+          {{- if .Values.http.enabled }}
+            - protocol: TCP
+              name: http
+              containerPort: {{ .Values.http.port }}
+          {{- end }}
+          {{- if .Values.grpc.enabled }}
+            - protocol: TCP
+              name: grpc
+              containerPort: {{ .Values.grpc.port }}
+          {{- end }}
+          {{- if .Values.grpcs.enabled }}
+            - protocol: TCP
+              name: grpcs
+              containerPort: {{ .Values.grpcs.port }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          {{- with .Values.volumeMounts }} 
+            {{- toYaml . | nindent 12 }}
+          {{- end}}
+          {{- if .Values.liveness.enabled }}
+          livenessProbe:
+            {{- with .Values.liveness.command }}
+            exec:
+              command: 
+                {{- toYaml . | nindent 16 }}
+            {{- end }}
+            {{- if .Values.liveness.path }}
+            httpGet:
+              path: {{ .Values.liveness.path }}
+              port: {{ .Values.http.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .Values.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.liveness.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.readiness.enabled }}
+          readinessProbe:
+            {{- with .Values.readiness.command }}
+            exec:
+              command: 
+                {{- toYaml . | nindent 16 }}
+            {{- end }}
+            {{- if .Values.readiness.path }}
+            httpGet:
+              path: {{ .Values.readiness.path }}
+              port: {{ .Values.http.port }}
+            {{- end }}
+            periodSeconds: {{ .Values.readiness.periodSeconds }}
+            initialDelaySeconds: {{ .Values.readiness.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.readiness.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.startup.enabled }}
+          startupProbe:
+            {{- with .Values.startup.command }}
+            exec:
+              command: 
+                {{- toYaml . | nindent 16 }}
+            {{- end }}
+            {{- if .Values.startup.path }}
+            httpGet:
+              path: {{ .Values.startup.path }}
+              port: {{ .Values.http.port }}
+            {{- end }}
+            periodSeconds: {{ .Values.startup.periodSeconds }}
+            initialDelaySeconds: {{ .Values.startup.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.startup.timeoutSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          emptyDir: {}
+        {{- if .Values.grpcs.enabled }}
+        - name: secret
+          secret:
+            secretName: {{ .Values.grpcs.tlsSecret }}
+        {{- end }}
+        {{- with .Values.volumes }} 
+          {{- toYaml . | nindent 8 }}
+        {{- end}}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
