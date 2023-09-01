@@ -3,12 +3,12 @@ entries:
   service:
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2023-08-31T21:13:27.005172425+05:45"
+    created: "2023-09-01T11:29:01.352739916+05:45"
     description: A Helm chart for Kubernetes
-    digest: 3511a0b42e9762c44d6fe98412e954dc1dfea0f29d6f8709f08c58fa60a19350
+    digest: 280bab9ac4cef4dd64bbdc703a754248a1404ccce4d710d17a6ae8e44b3f6de2
     name: service
     type: application
     urls:
     - https://anurag-dhamala.github.io/helm-charts/service-0.1.0.tgz
     version: 0.1.0
-generated: "2023-08-31T21:13:27.003996745+05:45"
+generated: "2023-09-01T11:29:01.351782628+05:45"
