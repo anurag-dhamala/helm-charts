@@ -133,6 +133,8 @@ spec:
             initialDelaySeconds: {{ .Values.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.liveness.timeoutSeconds }}
+            successThreshold: {{ .Values.readiness.successThreshold}}
+            failureThreshold: {{ .Values.readiness.failureThreshold}}
           {{- end }}
           {{- if .Values.readiness.enabled }}
           readinessProbe:
@@ -149,6 +151,8 @@ spec:
             periodSeconds: {{ .Values.readiness.periodSeconds }}
             initialDelaySeconds: {{ .Values.readiness.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.readiness.timeoutSeconds }}
+            successThreshold: {{ .Values.readiness.successThreshold}}
+            failureThreshold: {{ .Values.readiness.failureThreshold}}
           {{- end }}
           {{- if .Values.startup.enabled }}
           startupProbe:
@@ -165,6 +169,8 @@ spec:
             periodSeconds: {{ .Values.startup.periodSeconds }}
             initialDelaySeconds: {{ .Values.startup.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.startup.timeoutSeconds }}
+            successThreshold: {{ .Values.readiness.successThreshold}}
+            failureThreshold: {{ .Values.readiness.failureThreshold}}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
